@@ -6,5 +6,6 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [janiczek/markov "0.3.0"]
                  [clojure-opennlp "0.3.2"]]
+  :jvm-opts ["-Xmx1g"]
   :global-vars {*print-length* 7
                 *print-level* 7})
