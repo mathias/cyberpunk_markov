@@ -1,7 +1,8 @@
 (ns cyberpunk-markov.core
-  (:require [markov.core :refer :all]
+  (:require [clojure.core.async :as async]
             [clojure.java.io :as io]
             [clojure.string :refer [split]]
+            [markov.core :refer :all]
             [opennlp.nlp :refer :all]
             [opennlp.treebank :refer :all]))
 
