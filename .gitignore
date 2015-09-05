@@ -9,3 +9,8 @@ pom.xml.asc
 /.nrepl-port
 resources/*.txt
 resources/models
+
+.DS_Store
+.nrepl-history
+
+\.#*
