@@ -6,30 +6,10 @@
             [opennlp.nlp :refer :all]
             [opennlp.treebank :refer :all]))
 
-;;(def combined-books (atom ""))
-;;(def neuromancer-map (atom {}))
-;;(def accelerando-map (atom {}))
-
-;; (->>
-;;  (build-from-file 2 (io/resource "neuromancer.txt"))
-;;  (reset! neuromancer-map))
-
-;; (->>
-;;  (build-from-file 2 (.io/resource "accelerando.txt"))
-;;  (reset! accelerando-map))
 
 (defn load-resource
  [filename]
  (slurp (io/file (io/resource filename))))
-
-;; (defn load-books []
-;;   (reset! combined-books
-;;           (str (load-resource "accelerando.txt")
-;;                "\n\n"
-;;                (load-resource "neuromancer.txt"))))
-
-;;(def accelerando (load-resource "accelerando.txt"))
-;;(def neuromancer (load-resource "neuromancer.txt"))
 
 ; open nlp setup
 
@@ -40,28 +20,10 @@
 (def name-find (make-name-finder "resources/models/en-ner-person.bin"))
 (def chunker (make-treebank-chunker "resources/models/en-chunker.bin"))
 
-;; (def mapped-accel
-;;   (->>
-;;    (load-resource "accelerando.txt")
-;;    tokenize
-;;    (take 100)
-;;    pos-tag
-;;    build-from-coll))
-
-;;(take 100 (generate-walk "sky" mapped-accel))
-
 (defn words-from-pos
   "Get the words back from a parts-of-speech collection"
   [coll]
   (map first coll))
-
-;; (defn build-books-markov
-;;   []
-;;   (->>
-;;    @combined-books
-;;    tokenize
-;;    pos-tag
-;;    build-from-coll))
 
 (defn paragraphs-from
   [corpus]
@@ -71,15 +33,11 @@
   [num corpus]
   (take num (paragraphs-from corpus)))
 
-;; (def markov (build-books-markov))
-
 ;; (detokenize (words-from-pos (take 100 (generate-walk [["Manfred" "NNP"]] markov))))
 
 (defn nth-paragraphs
   [corpus num]
   (nth (paragraphs-from corpus) num))
-
-;;(def split-neuromancer (paragraphs-from neuromancer))
 
 (defn cleanup-neuromancer
   "Cleanup some issues with formatting of neuromancer.txt"
@@ -92,14 +50,9 @@
       (clojure.string/replace #"\n" " ")
       (clojure.string/replace #"\t" "\n")))
 
-;;(def cleaned-neuromancer (cleanup-neuromancer neuromancer))
-;;(def neuromancer-paragraphs (paragraphs-from cleaned-neuromancer))
-;;(def accelerando-paragraphs (paragraphs-from accelerando))
-
-;;(def markovs-by-para (map (fn [p1 p2] (->> (str p1 "\n" p2) tokenize pos-tag build-from-coll)) accelerando-paragraphs neuromancer-paragraphs))
-
-;; word counts per paragraph
-;; (map #(count (clojure.string/split % #" ")) neuromancer-paragraphs)
+(defn word-counts-per-paragraph
+  [corpus]
+  (map #(count (clojure.string/split % " ")) (paragraphs-from corpus)))
 
 (defn mean [coll]
   (if (empty? coll)
@@ -115,20 +68,6 @@
 ;; (mean-int (map #(count (clojure.string/split % #" ")) accelerando-paragraphs))
 ;;=> 52
 
-;; IGNORE:
-;; (defmacro fn-name
-;;   [f]
-;;   `(-> ~f var meta :name str))
-
-;; (defn print-progress [func input]
-;;   (do
-;;     (print (str (fn-name func) " got " (count input) " items."))
-;;     (func input)))
-
-;; (defn intercept [input]
-;;   (println "...")
-;;   input)
-
 (defn markov-from-books []
   (->
    (str (load-resource "accelerando.txt")
@@ -138,22 +77,62 @@
    pos-tag
    build-from-coll))
 
+;; Warning: This takes awhile:
 ;; (def markov-parsed (markov-from-books))
-
-;; (def corpus
-;;   (str (load-resource "accelerando.txt")
-;;        "\n"
-;;        (cleanup-neuromancer (load-resource "neuromancer.txt"))))
-;; (count (paragraphs-from corpus))
-;;=> 5513
-;; (def tokenized-corpus (tokenize corpus))
-;; (def tagged-corpus (pos-tag tokenized-corpus))
-
-;; (defn generate-paragraphs
-;;   [n]
-;;   (let [avg-words 52]
-;;     (repeatedly n (take (rand avg-words) (generate-walk markov-parsed)))))
 
 ;; Calling pos-tag on the entire corpus (2 books) takes too long!
 ;; Instead we need an async pos-tag that collects all the tagged data at the end
 
+(defn tagged-corpus [corpus]
+  (pmap pos-tag (map tokenize (paragraphs-from corpus))))
+
+;; Generating novels:
+
+(defn split-paragraphs
+  [corpus]
+  (clojure.string/split corpus #"\n"))
+
+(defn split-spaces
+  [s]
+  (clojure.string/split s #" "))
+
+(defn average-words-per-sentence
+  "Calculate the average words per sentence from our source material."
+  [corpus]
+  (let [sentences (clojure.string/split corpus #"[\.]")
+        words-by-sentence (map split-spaces sentences)
+        words-per (map count words-by-sentence)]
+    (mean-int words-per)))
+
+(defn average-sentences-per-paragraph
+  "Calculate the average words per sentence from our source material."
+  [corpus]
+  (let [paragraphs (split-paragraphs corpus)
+        num-paragraphs (count paragraphs)
+        split-sentences #(clojure.string/split % #"[\.]")
+        sentences-per-para (map (comp count split-sentences) paragraphs)]
+    (mean-int sentences-per-para)))
+
+(defn generate-sentence
+  [markov-model average-words-per-sentence]
+  (let [length (+ (rand-int average-words-per-sentence) 1) ;; range at least 1 to average-words-per-sentence
+        tagged-words (take average-words-per-sentence (generate-walk markov-model))
+        just-words (map first tagged-words)
+        joined-words (clojure.string/join " "  just-words)]
+    joined-words))
+
+(defn sentences
+  [markov-model avg-words-per-sentence]
+  (repeatedly #(generate-sentence markov-model avg-words-per-sentence)))
+
+(defn paragraphs
+  [markov-model avg-sentences-per-para avg-words-per-sentence]
+   (repeatedly #(take avg-sentences-per-para (sentences markov-model avg-words-per-sentence))))
+
+(defn generate-paragraphs
+  "Generate n number of paragraphs with average number of sentences per paragraph."
+  [num-paras markov-model avg-sentences-per-para avg-words-per-sentence]
+  (let [paras (take num-paras (paragraphs markov-model avg-sentences-per-para avg-words-per-sentence))
+        joined-sentences (map #(clojure.string/join ". " %) paras)
+        joined-paras (clojure.string/join "\n\n" joined-sentences)]
+    joined-paras))

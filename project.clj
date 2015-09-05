@@ -3,10 +3,10 @@
   :url "https://github.com/mathias/cyberpunk_markov"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/core.async "0.1.303.0-886421-alpha"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [janiczek/markov "0.3.0"]
                  [clojure-opennlp "0.3.2"]]
-  :jvm-opts ["-Xmx1g"]
+  :jvm-opts ["-Xmx2g"]
   :global-vars {*print-length* 7
                 *print-level* 7})
